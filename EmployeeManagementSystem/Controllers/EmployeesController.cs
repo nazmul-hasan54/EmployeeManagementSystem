@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using EmployeeManagementSystem.Data;
 using EmployeeManagementSystem.Models;
+using EmployeeManagementSystem.ViewModels;
 
 namespace EmployeeManagementSystem.Controllers
 {
@@ -22,7 +23,9 @@ namespace EmployeeManagementSystem.Controllers
         // GET: Employees
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Employees.Include(e => e.Department);
+            var applicationDbContext = _context.Employees.Include(e => e.Department)
+                                                         .Include(e => e.EmployeeAddress);
+
             return View(await applicationDbContext.ToListAsync());
         }
 
@@ -48,8 +51,8 @@ namespace EmployeeManagementSystem.Controllers
         // GET: Employees/Create
         public IActionResult Create()
         {
-            ViewData["DepartmentId"] = new SelectList(_context.Departments, "Id", "Id");
-            return View();
+            ViewData["DepartmentId"] = new SelectList(_context.Departments, "Id", "DepartmentName");
+            return View(new EmployeeVm());
         }
 
         // POST: Employees/Create
@@ -57,16 +60,35 @@ namespace EmployeeManagementSystem.Controllers
         
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name,Email,DepartmentId")] Employee employee)
+        public async Task<IActionResult> Create(EmployeeVm vm)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(employee);
+                var employee = new Employee
+                {
+                    Name = vm.Name,
+                    Email = vm.Email,
+                    DepartmentId = vm.DepartmentId,
+                };
+
+                _context.Employees.Add(employee);
                 await _context.SaveChangesAsync();
+
+                var address = new EmployeeAddress
+                {
+                    EmployeeId = employee.Id,
+                    City = vm.City,
+                    Area = vm.Area,
+                };
+
+                _context.EmployeeAddresses.Add(address);
+
+                await _context.SaveChangesAsync();
+
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["DepartmentId"] = new SelectList(_context.Departments, "Id", "Id", employee.DepartmentId);
-            return View(employee);
+            ViewData["DepartmentId"] = new SelectList(_context.Departments, "Id", "DepartmentName", vm.DepartmentId);
+            return View(vm);
         }
 
         // GET: Employees/Edit/5
